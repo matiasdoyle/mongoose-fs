@@ -85,8 +85,57 @@ describe('For a single record', function () {
     });
   });
 
-  after(function (done) {
-    File.findByIdAndRemove(id, done);
-  })
+  it('should remove blobs from GridFS', function (done) {
+    File.findById(id, function (err, file) {
+      if (err) {
+        return done(err);
+      }
+      file.unlink(function (err) {
+        if (err) {
+          return done(err);
+        }
+        file.retrieveBlobs(function (err, doc) {
+          if (err) {
+            return done(err);
+          }
+          (doc.content === undefined).should.be.ok;
+          (file._gfsLink.content === undefined).should.be.ok;
+          (file._gfsLink.complement === undefined).should.be.ok;
+          done();
+        });
+      });
+    });
+  });
 
+  it('does let you re-save blobs', function (done) {
+    File.findById(id, function (err, file) {
+      if (err) {
+        return done(err);
+      }
+      file.content = 'Some new content';
+      file.complement = { some: { new: { complicated: { stuff: true } } } };
+      file.save(function (err, doc) {
+        if (err) {
+          return done(err);
+        }
+        file.retrieveBlobs(function (err, doc) {
+          if (err) {
+            return done(err);
+          }
+          doc.content.should.be.exactly('Some new content');
+          doc.complement.some.new.complicated.stuff.should.be.ok;
+          done();
+        });
+      });
+    });
+  });
+
+  after(function (done) {
+    File.findById(id, function (err, doc) {
+      if (err) {
+        return done(err);
+      }
+      doc.remove(done);
+    });
+  });
 });
